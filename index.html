@@ -7,13 +7,21 @@
 <style>
 body { font-family: Arial; margin:0; background:#eef1f5; }
 
+/* HEADER */
 .header {
     background:#1f4e79;
     color:white;
     text-align:center;
     padding:20px 10px;
 }
-.logo { width:50px; }
+
+/* ✅ UPDATED LOGO */
+.logo {
+    width:50px;
+    border-radius:12px;
+    border:2px solid white;
+    box-shadow:0 2px 5px rgba(0,0,0,0.3);
+}
 
 .badge {
     display:inline-block;
@@ -26,6 +34,7 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 
 .sub-info { font-size:14px; }
 
+/* CARD */
 .card {
     background:white;
     margin:12px;
@@ -36,6 +45,7 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 
 .shift-title { font-weight:bold; margin-top:10px; }
 
+/* NAME CHIPS */
 .chip {
     display:inline-block;
     padding:6px 10px;
@@ -45,6 +55,13 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
     font-size:12px;
 }
 
+/* Highlight */
+.selected {
+    border:2px solid gold;
+    box-shadow:0 0 5px gold;
+}
+
+/* COLORS */
 .A { background:#8e24aa; }
 .B { background:#fb8c00; }
 .C { background:#1e88e5; }
@@ -54,6 +71,11 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 .extra { background:#fdd835; color:black; }
 
 hr { margin:10px 0; }
+
+select, button, input {
+    padding:6px;
+    margin-top:5px;
+}
 </style>
 
 </head>
@@ -76,6 +98,24 @@ hr { margin:10px 0; }
 <div class="card">
     <label>Select Date:</label>
     <input type="date" id="datePicker" onchange="renderSelected()">
+
+    <br><br>
+
+    <label>Your Name:</label>
+    <select id="nameSelector" onchange="onNameChange()"></select>
+
+    <br><br>
+
+    <label>Override Shift:</label>
+    <select id="shiftOverride">
+        <option value="">--None--</option>
+        <option>A</option><option>B</option><option>C</option>
+        <option>G</option><option>OFF</option>
+        <option>D</option><option>N</option>
+        <option>L</option><option>T</option>
+    </select>
+
+    <button onclick="applyOverride()">Apply</button>
 </div>
 
 <div class="card">
@@ -90,24 +130,29 @@ hr { margin:10px 0; }
 
 <script>
 
-// ✅ YOUR LINKS
+// 🔗 FILE LINKS
 const shiftUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/shift.csv";
 const holidayUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/holiday.csv";
 
 let data = [];
 let holidays = [];
+let selectedName = "";
+let overrides = {};
 
-// LOAD FILES
+// ✅ SENIORITY ORDER
+const seniorityOrder = [
+"Saiprasad","Abhigyan","Arshad","Sandip","Shashank","Debajit",
+"Satadru","Santanu","Arka","Devendra","Kamal","Vijay","Palash",
+"Nihal","Sampreeti","Arun","Jitu","Pritam","Hriday"
+];
+
+// LOAD DATA
 Promise.all([
     fetch(shiftUrl).then(res => res.text()),
     fetch(holidayUrl).then(res => res.text())
 ])
 .then(([shiftText, holidayText]) => {
 
-    console.log("Shift CSV Loaded");
-    console.log(shiftText);
-
-    // ✅ ROBUST CSV PARSER (handles , and ;)
     data = shiftText.split("\n").map(r =>
         r.replace(/\r/g, "").split(/[,;]/)
     );
@@ -119,15 +164,11 @@ Promise.all([
             return {
                 date: date?.trim(),
                 type: type?.trim(),
-                name: name ? name.trim() : ""
+                name: name?.trim()
             };
         });
 
     init();
-})
-.catch(err => {
-    console.error("ERROR LOADING FILES:", err);
-    alert("Error loading CSV. Check console.");
 });
 
 // DATE FORMAT
@@ -160,10 +201,11 @@ function init() {
     const today = new Date();
     const todayStr = formatDate(today);
 
-    document.getElementById("todayDate").innerText =
-        today.toDateString();
+    document.getElementById("todayDate").innerText = today.toDateString();
 
-    let myShift = getShiftForName(todayStr, "Debajit");
+    populateNames();
+
+    let myShift = getShiftForName(todayStr, selectedName);
 
     document.getElementById("todayShiftBadge").innerText =
         "Today Shift: " + (myShift || "No Data");
@@ -172,34 +214,45 @@ function init() {
     calculateNextHoliday(todayStr);
 }
 
-// GET SHIFT DATA
-function getShiftData(dateStr) {
+// POPULATE NAMES
+function populateNames() {
+    let dropdown = document.getElementById("nameSelector");
+    dropdown.innerHTML = "";
 
-    let header = data[0].map(h => h.trim());
-    console.log("Looking for:", dateStr);
-    console.log("Header:", header);
+    let names = [];
 
-    let col = header.indexOf(dateStr);
-
-    if (col === -1) return null;
-
-    let shifts = {};
-
-    for (let i=1; i<data.length; i++) {
+    for (let i = 1; i < data.length; i++) {
         let name = data[i][0]?.trim();
-        let shift = data[i][col]?.trim();
-
-        if (!shift) continue;
-
-        if (!shifts[shift]) shifts[shift] = [];
-        shifts[shift].push(name);
+        if (name) names.push(name);
     }
 
-    return shifts;
+    names = sortBySeniority(names);
+
+    names.forEach(n => {
+        let option = document.createElement("option");
+        option.value = n;
+        option.text = n;
+        dropdown.appendChild(option);
+    });
+
+    selectedName = dropdown.value;
 }
 
-// GET MY SHIFT
+// SORTING
+function sortBySeniority(names) {
+    return names.sort((a, b) => {
+        let ia = seniorityOrder.indexOf(a);
+        let ib = seniorityOrder.indexOf(b);
+        if (ia === -1) ia = 999;
+        if (ib === -1) ib = 999;
+        return ia - ib;
+    });
+}
+
+// GET SHIFT
 function getShiftForName(dateStr, name) {
+    let key = dateStr + "|" + name;
+    if (overrides[key]) return overrides[key];
 
     let header = data[0].map(h => h.trim());
     let col = header.indexOf(dateStr);
@@ -213,40 +266,80 @@ function getShiftForName(dateStr, name) {
 
 // RENDER
 function render(containerId, dateStr) {
-
     let container = document.getElementById(containerId);
     container.innerHTML = "";
 
     let shifts = getShiftData(dateStr);
-
-    if (!shifts) {
-        container.innerHTML = "No Data (Check date format)";
-        return;
-    }
+    if (!shifts) return;
 
     const main = ["A","B","C","G","OFF"];
     const extra = ["D","N","L","T"];
 
     main.forEach(s => {
-        let names = shifts[s] || [];
+        let names = sortBySeniority(shifts[s] || []);
         container.innerHTML += createBlock(s, names, s);
     });
 
     let extraHTML = "";
-
     extra.forEach(s => {
         if (shifts[s]) {
-            extraHTML += createBlock(s, shifts[s], "extra");
+            extraHTML += createBlock(s, sortBySeniority(shifts[s]), "extra");
         }
     });
 
     if (extraHTML) container.innerHTML += "<hr>" + extraHTML;
 }
 
-// BLOCK
+// GET SHIFT DATA
+function getShiftData(dateStr) {
+    let header = data[0].map(h => h.trim());
+    let col = header.indexOf(dateStr);
+    if (col === -1) return null;
+
+    let shifts = {};
+
+    for (let i=1; i<data.length; i++) {
+        let name = data[i][0]?.trim();
+        let shift = data[i][col]?.trim();
+
+        if (!shift) continue;
+
+        let key = dateStr + "|" + name;
+        if (overrides[key]) shift = overrides[key];
+
+        if (!shifts[shift]) shifts[shift] = [];
+        shifts[shift].push(name);
+    }
+
+    return shifts;
+}
+
+// CHIP BLOCK
 function createBlock(title, names, cls) {
-    let chips = names.map(n => `<span class="chip ${cls}">${n}</span>`).join("");
+    let chips = names.map(n => {
+        let highlight = (n === selectedName) ? "selected" : "";
+        return `<span class="chip ${cls} ${highlight}">${n}</span>`;
+    }).join("");
+
     return `<div class="shift-title">${title} (${names.length})</div>${chips || "-"}`;
+}
+
+// NAME CHANGE
+function onNameChange() {
+    selectedName = document.getElementById("nameSelector").value;
+    init();
+}
+
+// OVERRIDE
+function applyOverride() {
+    let shift = document.getElementById("shiftOverride").value;
+    if (!shift || !selectedName) return;
+
+    let todayStr = formatDate(new Date());
+    let key = todayStr + "|" + selectedName;
+
+    overrides[key] = shift;
+    init();
 }
 
 // SELECTED DATE
@@ -262,17 +355,13 @@ function renderSelected() {
 
 // HOLIDAY
 function calculateNextHoliday(todayStr) {
-
     let header = data[0].map(h => h.trim());
     let todayIndex = header.indexOf(todayStr);
 
-    let nextGH = null;
-    let nextRH = null;
+    let nextGH = null, nextRH = null;
 
     for (let i = todayIndex + 1; i < header.length; i++) {
-
         let date = header[i];
-
         let found = holidays.find(h => h.date === date);
 
         if (found) {
