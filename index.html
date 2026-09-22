@@ -43,15 +43,30 @@ body {
     border-radius:12px;
 }
 
-/* INPUT FIX */
+/* 🔥 INPUT FIX (IMPORTANT) */
 input, select {
-    width:100%;
-    height:38px;
-    padding:6px;
-    margin-top:6px;
-    border-radius:8px;
-    border:1px solid #ccc;
-    font-size:14px;
+    width: 100%;
+    height: 40px;
+    padding: 6px 10px;
+    margin-top: 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* EXTRA FIX FOR DATE */
+input[type="date"] {
+    display:block;
+}
+
+/* FOCUS */
+select:focus, input:focus {
+    outline:none;
+    border:2px solid gold;
 }
 
 /* SHIFT TITLE */
@@ -75,7 +90,7 @@ input, select {
     border:2px solid gold;
 }
 
-/* COLORS (MATCHING YOUR IMAGE) */
+/* COLORS */
 .A { background:#8e24aa; }
 .B { background:#ff9800; }
 .C { background:#1e40ff; }
@@ -130,21 +145,27 @@ let data = [];
 let holidays = [];
 let selectedName = "";
 
-// SENIORITY
+/* SENIORITY */
 const seniorityOrder = [
 "Saiprasad","Abhigyan","Arshad","Sandip","Shashank","Debajit",
 "Satadru","Santanu","Arka","Devendra","Kamal","Vijay","Palash",
 "Nihal","Sampreeti","Arun","Jitu","Pritam","Hriday"
 ];
 
-// LABELS
+/* LABELS */
 const shiftLabels = {
-"A":"A Shift","B":"B Shift","C":"C Shift",
-"G":"General","OFF":"Rest/Off",
-"D":"Day Duty","N":"Night Duty","L":"Leave","T":"Training"
+"A":"A Shift",
+"B":"B Shift",
+"C":"C Shift",
+"G":"General",
+"OFF":"Rest/Off",
+"D":"Day Shift",
+"N":"Night Shift",
+"L":"Leave",
+"T":"Training/Tour"
 };
 
-// LOAD
+/* LOAD DATA */
 Promise.all([
 fetch(shiftUrl).then(r=>r.text()),
 fetch(holidayUrl).then(r=>r.text())
@@ -171,60 +192,88 @@ refresh();
 calcHoliday();
 }
 
+/* NAMES */
 function populateNames(){
 let sel=document.getElementById("nameSelector");
 let names=[];
+
 for(let i=1;i<data.length;i++){
 let n=data[i][0]?.trim();
 if(n) names.push(n);
 }
-names=names.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
+
+names.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
+
 names.forEach(n=>sel.add(new Option(n,n)));
+
 selectedName=sel.value;
 }
 
+/* REFRESH */
 function refresh(){
 let today=formatDate(new Date());
+
 document.getElementById("todayShiftBadge").innerText=
-"Today Shift: "+getShift(today,selectedName);
+"Today Shift: "+(getShift(today,selectedName)||"-");
+
 render("today",today);
 }
 
+/* GET SHIFT */
 function getShift(date,name){
 let header=data[0];
 let col=header.indexOf(date);
+
 for(let i=1;i<data.length;i++){
 if(data[i][0]===name) return data[i][col];
 }
 }
 
+/* PROCESS DATA */
 function getData(date){
+
 let header=data[0];
 let col=header.indexOf(date);
 let shifts={};
 
 for(let i=1;i<data.length;i++){
+
 let name=data[i][0];
 let shift=data[i][col];
+
 if(!shift) continue;
 
+/* FIX OFF */
+if(shift==="OFF"){
+if(!shifts["OFF"]) shifts["OFF"]=[];
+shifts["OFF"].push(name);
+continue;
+}
+
+/* MULTI SHIFT */
 shift.split("").forEach(s=>{
 if(!shifts[s]) shifts[s]=[];
 shifts[s].push(name);
 });
 }
+
 return shifts;
 }
 
+/* RENDER */
 function render(id,date){
+
 let box=document.getElementById(id);
 box.innerHTML="";
 
 let shifts=getData(date);
 
-["A","B","C","G","OFF","D","N","L","T"].forEach(s=>{
+/* MAIN SHIFTS */
+["A","B","C","G","OFF","L","T"].forEach(s=>{
+
 let list=shifts[s]||[];
-list=list.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
+
+list.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
 
 let alert=(["A","B","C"].includes(s)&&list.length<=2)?" ❗":"";
 
@@ -235,13 +284,31 @@ return `<span class="chip ${s} ${sel}">${n}</span>`;
 
 box.innerHTML+=`<div class="shift-title">${shiftLabels[s]} (${list.length})${alert}</div>${chips||"-"}`;
 });
+
+/* CONDITIONAL D & N */
+["D","N"].forEach(s=>{
+
+let list=shifts[s]||[];
+if(list.length===0) return;
+
+list.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
+
+let chips=list.map(n=>{
+let sel=(n===selectedName)?"selected":"";
+return `<span class="chip ${s} ${sel}">${n}</span>`;
+}).join("");
+
+box.innerHTML+=`<div class="shift-title">${shiftLabels[s]} (${list.length})</div>${chips}`;
+});
 }
 
+/* NAME CHANGE */
 function onNameChange(){
 selectedName=document.getElementById("nameSelector").value;
 refresh();
 }
 
+/* SELECTED DATE */
 function renderSelected(){
 let val=document.getElementById("datePicker").value;
 if(!val) return;
@@ -249,10 +316,15 @@ let d=new Date(val);
 render("selected",formatDate(d));
 }
 
+/* HOLIDAY */
 function calcHoliday(){
 if(!holidays.length) return;
-document.getElementById("nextGH").innerText=holidays[0]?.date;
-document.getElementById("nextRH").innerText=holidays[1]?.date;
+
+document.getElementById("nextGH").innerText=
+holidays.find(h=>h.type==="GH")?.date || "-";
+
+document.getElementById("nextRH").innerText=
+holidays.find(h=>h.type==="RH")?.date || "-";
 }
 
 </script>
