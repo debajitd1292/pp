@@ -105,7 +105,6 @@ select:focus, input:focus {
     font-size:12px;
     color:#555;
 }
-
 </style>
 </head>
 
@@ -153,7 +152,7 @@ let data = [];
 let holidays = [];
 let selectedName = "";
 
-/* SENIORITY */
+/* ✅ CORRECT SENIORITY ORDER */
 const seniorityOrder = [
 "Saiprasad","Abhigyan","Arshad","Sandip","Shashank","Debajit",
 "Satadru","Santanu","Arka","Devendra","Kamal","Vijay","Palash",
@@ -173,18 +172,20 @@ const shiftLabels = {
 "T":"Training/Tour"
 };
 
-/* SORT FUNCTION */
+/* ✅ ROBUST SORT */
 function sortBySeniority(list){
     return list.sort((a,b)=>{
-        let ia = seniorityOrder.indexOf(a);
-        let ib = seniorityOrder.indexOf(b);
+        let ia = seniorityOrder.indexOf(a.trim());
+        let ib = seniorityOrder.indexOf(b.trim());
+
         if(ia === -1) ia = 999;
         if(ib === -1) ib = 999;
+
         return ia - ib;
     });
 }
 
-/* LOAD */
+/* LOAD DATA */
 Promise.all([
 fetch(shiftUrl).then(r=>r.text()),
 fetch(holidayUrl).then(r=>r.text())
@@ -211,7 +212,7 @@ refresh();
 calcHoliday();
 }
 
-/* NAMES */
+/* POPULATE NAMES */
 function populateNames(){
 let sel=document.getElementById("nameSelector");
 let names=[];
@@ -224,7 +225,6 @@ if(n) names.push(n);
 names = sortBySeniority(names);
 
 sel.add(new Option("Select Name",""));
-
 names.forEach(n=>sel.add(new Option(n,n)));
 
 if(selectedName && names.includes(selectedName)){
@@ -246,25 +246,27 @@ render("today",today);
 
 /* GET SHIFT */
 function getShift(date,name){
-let header=data[0];
+let header=data[0].map(x=>x.trim());
 let col=header.indexOf(date);
 
 for(let i=1;i<data.length;i++){
-if(data[i][0]===name) return data[i][col];
+if(data[i][0]?.trim()===name){
+return data[i][col]?.trim();
+}
 }
 }
 
-/* PROCESS */
+/* PROCESS DATA */
 function getData(date){
 
-let header=data[0];
+let header=data[0].map(x=>x.trim());
 let col=header.indexOf(date);
 let shifts={};
 
 for(let i=1;i<data.length;i++){
 
-let name=data[i][0];
-let shift=data[i][col];
+let name=data[i][0]?.trim();
+let shift=data[i][col]?.trim();
 
 if(!shift) continue;
 
@@ -274,6 +276,7 @@ shifts["OFF"].push(name);
 continue;
 }
 
+/* MULTI SHIFT */
 shift.split("").forEach(s=>{
 if(!shifts[s]) shifts[s]=[];
 shifts[s].push(name);
@@ -291,7 +294,7 @@ box.innerHTML="";
 
 let shifts=getData(date);
 
-/* MAIN */
+/* MAIN SHIFTS */
 ["A","B","C","G","OFF","L","T"].forEach(s=>{
 
 let list=shifts[s]||[];
@@ -308,7 +311,7 @@ return `<span class="chip ${s} ${sel}">${n}</span>`;
 box.innerHTML+=`<div class="shift-title">${shiftLabels[s]} (${list.length})${alert}</div>${chips||"-"}`;
 });
 
-/* CONDITIONAL D/N */
+/* CONDITIONAL D & N */
 ["D","N"].forEach(s=>{
 let list=shifts[s]||[];
 if(list.length===0) return;
@@ -334,7 +337,7 @@ renderSelected();
 }
 }
 
-/* SELECTED */
+/* SELECTED DATE */
 function renderSelected(){
 let val=document.getElementById("datePicker").value;
 if(!val) return;
