@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PPU Shift Dashboard</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin:0;
+    background:#eef1f5;
+}
+
+/* HEADER */
+.header {
+    background:#1f4e79;
+    color:white;
+    text-align:center;
+    padding:20px 10px;
+}
+.logo {
+    width:50px;
+}
+.badge {
+    display:inline-block;
+    background:#c2185b;
+    padding:6px 14px;
+    border-radius:20px;
+    margin:8px 0;
+    font-weight:bold;
+}
+.sub-info {
+    font-size:14px;
+}
+
+/* CARD */
+.card {
+    background:white;
+    margin:12px;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* SHIFT TEXT */
+.shift-title {
+    font-weight:bold;
+    margin-top:10px;
+}
+
+/* NAME CHIPS */
+.chip {
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:20px;
+    color:white;
+    margin:3px;
+    font-size:12px;
+}
+
+/* COLORS */
+.A { background:#8e24aa; }
+.B { background:#fb8c00; }
+.C { background:#1e88e5; }
+.G { background:#e53935; }
+.OFF { background:#2e7d32; }
+
+.extra { background:#fdd835; color:black; }
+
+hr {
+    margin:10px 0;
+}
+</style>
+
+</head>
+
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <img src="https://raw.githubusercontent.com/debajitd1292/ppu/main/logo.png" class="logo">
+    <h2>PPU Shift Schedule</h2>
+    <div id="todayDate"></div>
+
+    <div class="badge" id="todayShiftBadge"></div>
+
+    <div class="sub-info">
+        Next GH: <span id="nextGH">-</span> |
+        Next RH: <span id="nextRH">-</span>
+    </div>
+</div>
+
+<!-- DATE SELECT -->
+<div class="card">
+    <label>Select Date:</label>
+    <input type="date" id="datePicker" onchange="renderSelected()">
+</div>
+
+<!-- TODAY -->
+<div class="card">
+    <h3>TODAY</h3>
+    <div id="today"></div>
+</div>
+
+<!-- SELECTED -->
+<div class="card">
+    <h3>SELECTED</h3>
+    <div id="selected"></div>
+</div>
+
+<script>
+
+// 🔗 UPDATE THESE LINKS
+const shiftUrl = "https://raw.githubusercontent.com/debajitd1292/ppu/main/shift.csv";
+const holidayUrl = "https://raw.githubusercontent.com/debajitd1292/ppu/main/holiday.csv";
+
+let data = [];
+let holidays = [];
+
+// LOAD BOTH FILES
+Promise.all([
+    fetch(shiftUrl).then(res => res.text()),
+    fetch(holidayUrl).then(res => res.text())
+])
+.then(([shiftText, holidayText]) => {
+
+    data = shiftText.split("\n").map(r => r.split(","));
+
+    holidays = holidayText.split("\n")
+        .slice(1)
+        .map(r => {
+            let [date, type, name] = r.split(",");
+            return {
+                date: date.trim(),
+                type: type.trim(),
+                name: name ? name.trim() : ""
+            };
+        });
+
+    init();
+});
+
+// DATE FORMAT dd-mm-yyyy
+function formatDate(date) {
+    let d = ("0" + date.getDate()).slice(-2);
+    let m = ("0" + (date.getMonth()+1)).slice(-2);
+    let y = date.getFullYear();
+    return `${d}-${m}-${y}`;
+}
+
+// PRETTY DATE (2nd Oct)
+function formatPrettyDate(dateStr) {
+    const [d, m, y] = dateStr.split("-");
+    const date = new Date(`${y}-${m}-${d}`);
+
+    const day = date.getDate();
+    const month = date.toLocaleString('en-US', { month: 'short' });
+
+    const suffix = (day % 10 === 1 && day !== 11) ? "st" :
+                   (day % 10 === 2 && day !== 12) ? "nd" :
+                   (day % 10 === 3 && day !== 13) ? "rd" : "th";
+
+    return `${day}${suffix} ${month}`;
+}
+
+// INIT
+function init() {
+    const today = new Date();
+    const todayStr = formatDate(today);
+
+    document.getElementById("todayDate").innerText =
+        today.toDateString();
+
+    let myShift = getShiftForName(todayStr, "Debajit");
+
+    document.getElementById("todayShiftBadge").innerText =
+        "Today Shift: " + (myShift || "-");
+
+    render("today", todayStr);
+
+    calculateNextHoliday(todayStr);
+}
+
+// GET SHIFT DATA
+function getShiftData(dateStr) {
+
+    let header = data[0];
+    let col = header.indexOf(dateStr);
+
+    if (col === -1) return null;
+
+    let shifts = {};
+
+    for (let i=1; i<data.length; i++) {
+        let name = data[i][0];
+        let shift = data[i][col]?.trim();
+
+        if (!shift) continue;
+
+        if (!shifts[shift]) shifts[shift] = [];
+        shifts[shift].push(name);
+    }
+
+    return shifts;
+}
+
+// GET MY SHIFT
+function getShiftForName(dateStr, name) {
+
+    let header = data[0];
+    let col = header.indexOf(dateStr);
+
+    for (let i=1; i<data.length; i++) {
+        if (data[i][0] === name) {
+            return data[i][col];
+        }
+    }
+}
+
+// RENDER SECTION
+function render(containerId, dateStr) {
+
+    let container = document.getElementById(containerId);
+    container.innerHTML = "";
+
+    let shifts = getShiftData(dateStr);
+
+    if (!shifts) {
+        container.innerHTML = "No Data";
+        return;
+    }
+
+    const main = ["A","B","C","G","OFF"];
+    const extra = ["D","N","L","T"];
+
+    main.forEach(s => {
+        let names = shifts[s] || [];
+        container.innerHTML += createBlock(s, names, s);
+    });
+
+    let extraHTML = "";
+
+    extra.forEach(s => {
+        if (shifts[s]) {
+            extraHTML += createBlock(s, shifts[s], "extra");
+        }
+    });
+
+    if (extraHTML) {
+        container.innerHTML += "<hr>" + extraHTML;
+    }
+}
+
+// BLOCK CREATION
+function createBlock(title, names, cls) {
+
+    let chips = names.map(n => `<span class="chip ${cls}">${n}</span>`).join("");
+
+    return `
+        <div class="shift-title">${title} (${names.length})</div>
+        ${chips || "-"}
+    `;
+}
+
+// SELECTED DATE
+function renderSelected() {
+
+    let val = document.getElementById("datePicker").value;
+    if (!val) return;
+
+    let date = new Date(val);
+    let str = formatDate(date);
+
+    render("selected", str);
+}
+
+// NEXT HOLIDAY
+function calculateNextHoliday(todayStr) {
+
+    let header = data[0];
+    let todayIndex = header.indexOf(todayStr);
+
+    let nextGH = null;
+    let nextRH = null;
+
+    for (let i = todayIndex + 1; i < header.length; i++) {
+
+        let date = header[i];
+
+        let found = holidays.find(h => h.date === date);
+
+        if (found) {
+            if (found.type === "GH" && !nextGH) {
+                nextGH = found;
+            }
+            if (found.type === "RH" && !nextRH) {
+                nextRH = found;
+            }
+        }
+
+        if (nextGH && nextRH) break;
+    }
+
+    document.getElementById("nextGH").innerText =
+        nextGH ? `${formatPrettyDate(nextGH.date)} (${nextGH.name})` : "-";
+
+    document.getElementById("nextRH").innerText =
+        nextRH ? `${formatPrettyDate(nextRH.date)} (${nextRH.name})` : "-";
+}
+
+</script>
+
+</body>
+</html>
