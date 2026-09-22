@@ -7,7 +7,6 @@
 <style>
 body { font-family: Arial; margin:0; background:#eef1f5; }
 
-/* HEADER */
 .header {
     background:#1f4e79;
     color:white;
@@ -15,7 +14,6 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
     padding:20px 10px;
 }
 
-/* ✅ UPDATED LOGO */
 .logo {
     width:50px;
     border-radius:12px;
@@ -34,7 +32,6 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 
 .sub-info { font-size:14px; }
 
-/* CARD */
 .card {
     background:white;
     margin:12px;
@@ -45,7 +42,6 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 
 .shift-title { font-weight:bold; margin-top:10px; }
 
-/* NAME CHIPS */
 .chip {
     display:inline-block;
     padding:6px 10px;
@@ -55,13 +51,11 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
     font-size:12px;
 }
 
-/* Highlight */
 .selected {
     border:2px solid gold;
     box-shadow:0 0 5px gold;
 }
 
-/* COLORS */
 .A { background:#8e24aa; }
 .B { background:#fb8c00; }
 .C { background:#1e88e5; }
@@ -106,6 +100,11 @@ select, button, input {
 
     <br><br>
 
+    <label>Override For:</label>
+    <select id="overrideName"></select>
+
+    <br><br>
+
     <label>Override Shift:</label>
     <select id="shiftOverride">
         <option value="">--None--</option>
@@ -130,7 +129,6 @@ select, button, input {
 
 <script>
 
-// 🔗 FILE LINKS
 const shiftUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/shift.csv";
 const holidayUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/holiday.csv";
 
@@ -139,14 +137,12 @@ let holidays = [];
 let selectedName = "";
 let overrides = {};
 
-// ✅ SENIORITY ORDER
 const seniorityOrder = [
 "Saiprasad","Abhigyan","Arshad","Sandip","Shashank","Debajit",
 "Satadru","Santanu","Arka","Devendra","Kamal","Vijay","Palash",
 "Nihal","Sampreeti","Arun","Jitu","Pritam","Hriday"
 ];
 
-// LOAD DATA
 Promise.all([
     fetch(shiftUrl).then(res => res.text()),
     fetch(holidayUrl).then(res => res.text())
@@ -163,15 +159,21 @@ Promise.all([
             let [date, type, name] = r.replace(/\r/g, "").split(/[,;]/);
             return {
                 date: date?.trim(),
-                type: type?.trim(),
+                type: type?.trim().toUpperCase(),
                 name: name?.trim()
             };
         });
 
+    // ✅ SORT HOLIDAYS
+    holidays.sort((a, b) => {
+        let [d1,m1,y1] = a.date.split("-");
+        let [d2,m2,y2] = b.date.split("-");
+        return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
+    });
+
     init();
 });
 
-// DATE FORMAT
 function formatDate(date) {
     let d = ("0" + date.getDate()).slice(-2);
     let m = ("0" + (date.getMonth()+1)).slice(-2);
@@ -179,10 +181,7 @@ function formatDate(date) {
     return `${d}-${m}-${y}`;
 }
 
-// PRETTY DATE
 function formatPrettyDate(dateStr) {
-    if (!dateStr) return "-";
-
     const [d, m, y] = dateStr.split("-");
     const date = new Date(`${y}-${m}-${d}`);
 
@@ -196,7 +195,6 @@ function formatPrettyDate(dateStr) {
     return `${day}${suffix} ${month}`;
 }
 
-// INIT
 function init() {
     const today = new Date();
     const todayStr = formatDate(today);
@@ -214,10 +212,13 @@ function init() {
     calculateNextHoliday(todayStr);
 }
 
-// POPULATE NAMES
 function populateNames() {
-    let dropdown = document.getElementById("nameSelector");
-    dropdown.innerHTML = "";
+
+    let nameDropdown = document.getElementById("nameSelector");
+    let overrideDropdown = document.getElementById("overrideName");
+
+    nameDropdown.innerHTML = "";
+    overrideDropdown.innerHTML = "";
 
     let names = [];
 
@@ -229,16 +230,13 @@ function populateNames() {
     names = sortBySeniority(names);
 
     names.forEach(n => {
-        let option = document.createElement("option");
-        option.value = n;
-        option.text = n;
-        dropdown.appendChild(option);
+        nameDropdown.add(new Option(n, n));
+        overrideDropdown.add(new Option(n, n));
     });
 
-    selectedName = dropdown.value;
+    selectedName = nameDropdown.value;
 }
 
-// SORTING
 function sortBySeniority(names) {
     return names.sort((a, b) => {
         let ia = seniorityOrder.indexOf(a);
@@ -249,7 +247,6 @@ function sortBySeniority(names) {
     });
 }
 
-// GET SHIFT
 function getShiftForName(dateStr, name) {
     let key = dateStr + "|" + name;
     if (overrides[key]) return overrides[key];
@@ -264,7 +261,27 @@ function getShiftForName(dateStr, name) {
     }
 }
 
-// RENDER
+function getShiftData(dateStr) {
+    let header = data[0].map(h => h.trim());
+    let col = header.indexOf(dateStr);
+    if (col === -1) return null;
+
+    let shifts = {};
+
+    for (let i=1; i<data.length; i++) {
+        let name = data[i][0]?.trim();
+        let shift = data[i][col]?.trim();
+
+        let key = dateStr + "|" + name;
+        if (overrides[key]) shift = overrides[key];
+
+        if (!shifts[shift]) shifts[shift] = [];
+        shifts[shift].push(name);
+    }
+
+    return shifts;
+}
+
 function render(containerId, dateStr) {
     let container = document.getElementById(containerId);
     container.innerHTML = "";
@@ -290,31 +307,6 @@ function render(containerId, dateStr) {
     if (extraHTML) container.innerHTML += "<hr>" + extraHTML;
 }
 
-// GET SHIFT DATA
-function getShiftData(dateStr) {
-    let header = data[0].map(h => h.trim());
-    let col = header.indexOf(dateStr);
-    if (col === -1) return null;
-
-    let shifts = {};
-
-    for (let i=1; i<data.length; i++) {
-        let name = data[i][0]?.trim();
-        let shift = data[i][col]?.trim();
-
-        if (!shift) continue;
-
-        let key = dateStr + "|" + name;
-        if (overrides[key]) shift = overrides[key];
-
-        if (!shifts[shift]) shifts[shift] = [];
-        shifts[shift].push(name);
-    }
-
-    return shifts;
-}
-
-// CHIP BLOCK
 function createBlock(title, names, cls) {
     let chips = names.map(n => {
         let highlight = (n === selectedName) ? "selected" : "";
@@ -324,53 +316,55 @@ function createBlock(title, names, cls) {
     return `<div class="shift-title">${title} (${names.length})</div>${chips || "-"}`;
 }
 
-// NAME CHANGE
 function onNameChange() {
     selectedName = document.getElementById("nameSelector").value;
     init();
 }
 
-// OVERRIDE
 function applyOverride() {
+
     let shift = document.getElementById("shiftOverride").value;
-    if (!shift || !selectedName) return;
+    let name = document.getElementById("overrideName").value;
 
-    let todayStr = formatDate(new Date());
-    let key = todayStr + "|" + selectedName;
+    if (!shift || !name) return;
 
-    overrides[key] = shift;
+    let dateInput = document.getElementById("datePicker").value;
+    let dateStr = dateInput ? formatDate(new Date(dateInput)) : formatDate(new Date());
+
+    overrides[dateStr + "|" + name] = shift;
+
     init();
 }
 
-// SELECTED DATE
 function renderSelected() {
     let val = document.getElementById("datePicker").value;
     if (!val) return;
 
-    let date = new Date(val);
-    let str = formatDate(date);
-
+    let str = formatDate(new Date(val));
     render("selected", str);
 }
 
-// HOLIDAY
+// ✅ FIXED HOLIDAY LOGIC
 function calculateNextHoliday(todayStr) {
-    let header = data[0].map(h => h.trim());
-    let todayIndex = header.indexOf(todayStr);
 
-    let nextGH = null, nextRH = null;
+    const [d, m, y] = todayStr.split("-");
+    const today = new Date(`${y}-${m}-${d}`);
 
-    for (let i = todayIndex + 1; i < header.length; i++) {
-        let date = header[i];
-        let found = holidays.find(h => h.date === date);
+    let nextGH = null;
+    let nextRH = null;
 
-        if (found) {
-            if (found.type === "GH" && !nextGH) nextGH = found;
-            if (found.type === "RH" && !nextRH) nextRH = found;
-        }
+    holidays.forEach(h => {
 
-        if (nextGH && nextRH) break;
-    }
+        if (!h.date) return;
+
+        const [dd, mm, yy] = h.date.split("-");
+        const hDate = new Date(`${yy}-${mm}-${dd}`);
+
+        if (hDate <= today) return;
+
+        if (h.type === "GH" && !nextGH) nextGH = h;
+        if (h.type === "RH" && !nextRH) nextRH = h;
+    });
 
     document.getElementById("nextGH").innerText =
         nextGH ? `${formatPrettyDate(nextGH.date)} (${nextGH.name})` : "-";
