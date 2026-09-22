@@ -2,20 +2,22 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>PPU Shift Dashboard</title>
 
 <style>
-body { font-family: Arial; margin:0; background:#eef1f5; }
+body { font-family: Arial; margin:0; background:#eef1f5; font-size:14px; }
 
 .header {
     background:#1f4e79;
     color:white;
     text-align:center;
-    padding:20px 10px;
+    padding:15px 8px;
 }
 
 .logo {
-    width:50px;
+    width:45px;
     border-radius:12px;
     border:2px solid white;
     box-shadow:0 2px 5px rgba(0,0,0,0.3);
@@ -24,27 +26,41 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 .badge {
     display:inline-block;
     background:#c2185b;
-    padding:6px 14px;
+    padding:5px 12px;
     border-radius:20px;
-    margin:8px 0;
+    margin:6px 0;
     font-weight:bold;
 }
 
-.sub-info { font-size:14px; }
+.sub-info { font-size:13px; }
 
 .card {
     background:white;
-    margin:12px;
-    padding:15px;
+    margin:10px;
+    padding:12px;
     border-radius:10px;
     box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+select, button, input {
+    width:100%;
+    padding:8px;
+    margin-top:6px;
+    border-radius:6px;
+    border:1px solid #ccc;
+}
+
+button {
+    background:#1f4e79;
+    color:white;
+    border:none;
 }
 
 .shift-title { font-weight:bold; margin-top:10px; }
 
 .chip {
     display:inline-block;
-    padding:6px 10px;
+    padding:5px 8px;
     border-radius:20px;
     color:white;
     margin:3px;
@@ -56,33 +72,30 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
     box-shadow:0 0 5px gold;
 }
 
+/* COLORS */
 .A { background:#8e24aa; }
 .B { background:#fb8c00; }
 .C { background:#1e88e5; }
 .G { background:#e53935; }
 .OFF { background:#2e7d32; }
 
-.extra { background:#fdd835; color:black; }
+.D { background:#6d4c41; }
+.N { background:#3949ab; }
+.L { background:#00897b; }
+.T { background:#f4511e; }
 
 hr { margin:10px 0; }
 
-select, button, input {
-    padding:6px;
-    margin-top:5px;
-}
 </style>
-
 </head>
 
 <body>
 
 <div class="header">
     <img src="https://raw.githubusercontent.com/debajitd1292/pp/main/logo.png" class="logo">
-    <h2>PPU Shift Schedule</h2>
+    <h3>PPU Shift Schedule</h3>
     <div id="todayDate"></div>
-
     <div class="badge" id="todayShiftBadge">Loading...</div>
-
     <div class="sub-info">
         Next GH: <span id="nextGH">-</span> |
         Next RH: <span id="nextRH">-</span>
@@ -93,17 +106,11 @@ select, button, input {
     <label>Select Date:</label>
     <input type="date" id="datePicker" onchange="renderSelected()">
 
-    <br><br>
-
     <label>Your Name:</label>
     <select id="nameSelector" onchange="onNameChange()"></select>
 
-    <br><br>
-
     <label>Override For:</label>
     <select id="overrideName"></select>
-
-    <br><br>
 
     <label>Override Shift:</label>
     <select id="shiftOverride">
@@ -114,7 +121,7 @@ select, button, input {
         <option>L</option><option>T</option>
     </select>
 
-    <button onclick="applyOverride()">Apply</button>
+    <button onclick="applyOverride()">Apply Override</button>
 </div>
 
 <div class="card">
@@ -143,234 +150,237 @@ const seniorityOrder = [
 "Nihal","Sampreeti","Arun","Jitu","Pritam","Hriday"
 ];
 
+const shiftLabels = {
+    "A": "A Shift",
+    "B": "B Shift",
+    "C": "C Shift",
+    "G": "G Shift",
+    "OFF": "OFF",
+    "D": "Day Duty",
+    "N": "Night Duty",
+    "L": "Leave",
+    "T": "Training / Tour"
+};
+
 Promise.all([
-    fetch(shiftUrl).then(res => res.text()),
-    fetch(holidayUrl).then(res => res.text())
-])
-.then(([shiftText, holidayText]) => {
+    fetch(shiftUrl).then(r => r.text()),
+    fetch(holidayUrl).then(r => r.text())
+]).then(([shiftText, holidayText]) => {
 
-    data = shiftText.split("\n").map(r =>
-        r.replace(/\r/g, "").split(/[,;]/)
-    );
+    data = shiftText.split("\n").map(r => r.replace(/\r/g,"").split(/[,;]/));
 
-    holidays = holidayText.split("\n")
-        .slice(1)
-        .map(r => {
-            let [date, type, name] = r.replace(/\r/g, "").split(/[,;]/);
-            return {
-                date: date?.trim(),
-                type: type?.trim().toUpperCase(),
-                name: name?.trim()
-            };
-        });
+    holidays = holidayText.split("\n").slice(1).map(r => {
+        let [d,t,n] = r.replace(/\r/g,"").split(/[,;]/);
+        return { date:d?.trim(), type:t?.trim().toUpperCase(), name:n?.trim() };
+    });
 
-    // ✅ SORT HOLIDAYS
-    holidays.sort((a, b) => {
-        let [d1,m1,y1] = a.date.split("-");
-        let [d2,m2,y2] = b.date.split("-");
+    holidays.sort((a,b)=>{
+        let [d1,m1,y1]=a.date.split("-");
+        let [d2,m2,y2]=b.date.split("-");
         return new Date(`${y1}-${m1}-${d1}`) - new Date(`${y2}-${m2}-${d2}`);
     });
 
     init();
 });
 
-function formatDate(date) {
-    let d = ("0" + date.getDate()).slice(-2);
-    let m = ("0" + (date.getMonth()+1)).slice(-2);
-    let y = date.getFullYear();
-    return `${d}-${m}-${y}`;
+function formatDate(date){
+    return ("0"+date.getDate()).slice(-2)+"-"+("0"+(date.getMonth()+1)).slice(-2)+"-"+date.getFullYear();
 }
 
-function formatPrettyDate(dateStr) {
-    const [d, m, y] = dateStr.split("-");
-    const date = new Date(`${y}-${m}-${d}`);
-
-    const day = date.getDate();
-    const month = date.toLocaleString('en-US', { month: 'short' });
-
-    const suffix = (day % 10 === 1 && day !== 11) ? "st" :
-                   (day % 10 === 2 && day !== 12) ? "nd" :
-                   (day % 10 === 3 && day !== 13) ? "rd" : "th";
-
-    return `${day}${suffix} ${month}`;
-}
-
-function init() {
-    const today = new Date();
-    const todayStr = formatDate(today);
-
-    document.getElementById("todayDate").innerText = today.toDateString();
-
+function init(){
+    document.getElementById("todayDate").innerText = new Date().toDateString();
     populateNames();
-
-    let myShift = getShiftForName(todayStr, selectedName);
-
-    document.getElementById("todayShiftBadge").innerText =
-        "Today Shift: " + (myShift || "No Data");
-
-    render("today", todayStr);
-    calculateNextHoliday(todayStr);
+    refreshUI();
+    calculateNextHoliday(formatDate(new Date()));
 }
 
-function populateNames() {
+function populateNames(){
 
-    let nameDropdown = document.getElementById("nameSelector");
-    let overrideDropdown = document.getElementById("overrideName");
+    let nameSel = document.getElementById("nameSelector");
+    let overrideSel = document.getElementById("overrideName");
 
-    nameDropdown.innerHTML = "";
-    overrideDropdown.innerHTML = "";
+    let prev = selectedName;
+
+    nameSel.innerHTML="";
+    overrideSel.innerHTML="";
 
     let names = [];
 
-    for (let i = 1; i < data.length; i++) {
-        let name = data[i][0]?.trim();
-        if (name) names.push(name);
+    for(let i=1;i<data.length;i++){
+        let n = data[i][0]?.trim();
+        if(n) names.push(n);
     }
 
     names = sortBySeniority(names);
 
-    names.forEach(n => {
-        nameDropdown.add(new Option(n, n));
-        overrideDropdown.add(new Option(n, n));
+    names.forEach(n=>{
+        nameSel.add(new Option(n,n));
+        overrideSel.add(new Option(n,n));
     });
 
-    selectedName = nameDropdown.value;
+    if(prev && names.includes(prev)){
+        selectedName = prev;
+        nameSel.value = prev;
+        overrideSel.value = prev;
+    } else {
+        selectedName = nameSel.value;
+        overrideSel.value = selectedName;
+    }
 }
 
-function sortBySeniority(names) {
-    return names.sort((a, b) => {
-        let ia = seniorityOrder.indexOf(a);
-        let ib = seniorityOrder.indexOf(b);
-        if (ia === -1) ia = 999;
-        if (ib === -1) ib = 999;
-        return ia - ib;
+function sortBySeniority(names){
+    return names.sort((a,b)=>{
+        let ia = seniorityOrder.indexOf(a); if(ia==-1) ia=999;
+        let ib = seniorityOrder.indexOf(b); if(ib==-1) ib=999;
+        return ia-ib;
     });
 }
 
-function getShiftForName(dateStr, name) {
-    let key = dateStr + "|" + name;
-    if (overrides[key]) return overrides[key];
+function refreshUI(){
 
-    let header = data[0].map(h => h.trim());
+    let todayStr = formatDate(new Date());
+    let shift = getShiftForName(todayStr, selectedName);
+
+    document.getElementById("todayShiftBadge").innerText =
+        "Today Shift: " + (shift || "-");
+
+    render("today", todayStr);
+
+    if(document.getElementById("datePicker").value){
+        renderSelected();
+    }
+}
+
+function getShiftForName(dateStr,name){
+
+    let key = dateStr+"|"+name;
+    if(overrides[key]) return overrides[key];
+
+    let header = data[0].map(x=>x.trim());
     let col = header.indexOf(dateStr);
 
-    for (let i=1; i<data.length; i++) {
-        if (data[i][0]?.trim() === name) {
+    for(let i=1;i<data.length;i++){
+        if(data[i][0]?.trim()===name){
             return data[i][col]?.trim();
         }
     }
 }
 
-function getShiftData(dateStr) {
-    let header = data[0].map(h => h.trim());
+function getShiftData(dateStr){
+
+    let header = data[0].map(x=>x.trim());
     let col = header.indexOf(dateStr);
-    if (col === -1) return null;
+    if(col===-1) return null;
 
-    let shifts = {};
+    let shifts={};
 
-    for (let i=1; i<data.length; i++) {
-        let name = data[i][0]?.trim();
-        let shift = data[i][col]?.trim();
+    for(let i=1;i<data.length;i++){
 
-        let key = dateStr + "|" + name;
-        if (overrides[key]) shift = overrides[key];
+        let name=data[i][0]?.trim();
+        let shift=data[i][col]?.trim();
 
-        if (!shifts[shift]) shifts[shift] = [];
-        shifts[shift].push(name);
+        if(!shift) continue;
+
+        let key=dateStr+"|"+name;
+        if(overrides[key]) shift=overrides[key];
+
+        let list = shift.split("");
+
+        list.forEach(s=>{
+            if(!shifts[s]) shifts[s]=[];
+            shifts[s].push({ name:name, multi: shift.length>1 });
+        });
     }
-
     return shifts;
 }
 
-function render(containerId, dateStr) {
-    let container = document.getElementById(containerId);
-    container.innerHTML = "";
+function render(id,dateStr){
 
-    let shifts = getShiftData(dateStr);
-    if (!shifts) return;
+    let container=document.getElementById(id);
+    container.innerHTML="";
 
-    const main = ["A","B","C","G","OFF"];
-    const extra = ["D","N","L","T"];
+    let shifts=getShiftData(dateStr);
+    if(!shifts){ container.innerHTML="No Data"; return; }
 
-    main.forEach(s => {
-        let names = sortBySeniority(shifts[s] || []);
-        container.innerHTML += createBlock(s, names, s);
+    ["A","B","C","G","OFF","D","N","L","T"].forEach(s=>{
+
+        let list = shifts[s] || [];
+        let names = list.map(x=>x.name);
+        names = sortBySeniority(names);
+
+        let sortedList = names.map(n => list.find(x=>x.name===n));
+
+        container.innerHTML += createBlock(s,sortedList,s);
     });
-
-    let extraHTML = "";
-    extra.forEach(s => {
-        if (shifts[s]) {
-            extraHTML += createBlock(s, sortBySeniority(shifts[s]), "extra");
-        }
-    });
-
-    if (extraHTML) container.innerHTML += "<hr>" + extraHTML;
 }
 
-function createBlock(title, names, cls) {
-    let chips = names.map(n => {
-        let highlight = (n === selectedName) ? "selected" : "";
-        return `<span class="chip ${cls} ${highlight}">${n}</span>`;
+function createBlock(title,list,cls){
+
+    let count=list.length;
+
+    let alert = (["A","B","C"].includes(title) && count<=2) ? " ❗" : "";
+
+    let chips=list.map(obj=>{
+        let sel=(obj.name===selectedName)?"selected":"";
+        let multi=obj.multi?" ❕":"";
+        return `<span class="chip ${cls} ${sel}">${obj.name}${multi}</span>`;
     }).join("");
 
-    return `<div class="shift-title">${title} (${names.length})</div>${chips || "-"}`;
+    let label = shiftLabels[title] || title;
+
+    return `<div class="shift-title">${label} (${count})${alert}</div>${chips||"-"}`;
 }
 
-function onNameChange() {
-    selectedName = document.getElementById("nameSelector").value;
-    init();
+function onNameChange(){
+    selectedName=document.getElementById("nameSelector").value;
+    document.getElementById("overrideName").value=selectedName;
+    refreshUI();
 }
 
-function applyOverride() {
+function applyOverride(){
 
-    let shift = document.getElementById("shiftOverride").value;
-    let name = document.getElementById("overrideName").value;
+    let name=document.getElementById("overrideName").value;
+    let shift=document.getElementById("shiftOverride").value;
+    if(!name||!shift) return;
 
-    if (!shift || !name) return;
-
-    let dateInput = document.getElementById("datePicker").value;
+    let dateInput=document.getElementById("datePicker").value;
     let dateStr = dateInput ? formatDate(new Date(dateInput)) : formatDate(new Date());
 
-    overrides[dateStr + "|" + name] = shift;
+    overrides[dateStr+"|"+name]=shift;
 
-    init();
+    refreshUI();
 }
 
-function renderSelected() {
-    let val = document.getElementById("datePicker").value;
-    if (!val) return;
-
-    let str = formatDate(new Date(val));
-    render("selected", str);
+function renderSelected(){
+    let val=document.getElementById("datePicker").value;
+    if(!val) return;
+    render("selected", formatDate(new Date(val)));
 }
 
-// ✅ FIXED HOLIDAY LOGIC
-function calculateNextHoliday(todayStr) {
+function calculateNextHoliday(todayStr){
 
-    const [d, m, y] = todayStr.split("-");
-    const today = new Date(`${y}-${m}-${d}`);
+    let [d,m,y]=todayStr.split("-");
+    let today=new Date(`${y}-${m}-${d}`);
 
-    let nextGH = null;
-    let nextRH = null;
+    let nextGH=null,nextRH=null;
 
-    holidays.forEach(h => {
+    holidays.forEach(h=>{
+        if(!h.date) return;
 
-        if (!h.date) return;
+        let [dd,mm,yy]=h.date.split("-");
+        let hd=new Date(`${yy}-${mm}-${dd}`);
 
-        const [dd, mm, yy] = h.date.split("-");
-        const hDate = new Date(`${yy}-${mm}-${dd}`);
+        if(hd<=today) return;
 
-        if (hDate <= today) return;
-
-        if (h.type === "GH" && !nextGH) nextGH = h;
-        if (h.type === "RH" && !nextRH) nextRH = h;
+        if(h.type==="GH"&&!nextGH) nextGH=h;
+        if(h.type==="RH"&&!nextRH) nextRH=h;
     });
 
     document.getElementById("nextGH").innerText =
-        nextGH ? `${formatPrettyDate(nextGH.date)} (${nextGH.name})` : "-";
+        nextGH ? nextGH.date+" ("+nextGH.name+")" : "-";
 
     document.getElementById("nextRH").innerText =
-        nextRH ? `${formatPrettyDate(nextRH.date)} (${nextRH.name})` : "-";
+        nextRH ? nextRH.date+" ("+nextRH.name+")" : "-";
 }
 
 </script>
