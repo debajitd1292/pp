@@ -43,7 +43,7 @@ body {
     border-radius:12px;
 }
 
-/* 🔥 INPUT FIX (IMPORTANT) */
+/* INPUT FIX */
 input, select {
     width: 100%;
     height: 40px;
@@ -58,24 +58,21 @@ input, select {
     appearance: none;
 }
 
-/* EXTRA FIX FOR DATE */
 input[type="date"] {
     display:block;
 }
 
-/* FOCUS */
 select:focus, input:focus {
     outline:none;
     border:2px solid gold;
 }
 
-/* SHIFT TITLE */
+/* SHIFT */
 .shift-title {
     font-weight:bold;
     margin-top:10px;
 }
 
-/* CHIPS */
 .chip {
     display:inline-block;
     padding:6px 10px;
@@ -85,7 +82,6 @@ select:focus, input:focus {
     font-size:12px;
 }
 
-/* HIGHLIGHT */
 .selected {
     border:2px solid gold;
 }
@@ -101,6 +97,14 @@ select:focus, input:focus {
 .N { background:#212121; }
 .L { background:#ffd600; color:black; }
 .T { background:#00acc1; color:black; }
+
+/* FOOTER */
+.footer {
+    text-align:center;
+    padding:15px;
+    font-size:12px;
+    color:#555;
+}
 
 </style>
 </head>
@@ -136,6 +140,10 @@ select:focus, input:focus {
     <div id="selected"></div>
 </div>
 
+<div class="footer">
+    © 2026 • Developed by DD
+</div>
+
 <script>
 
 const shiftUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/shift.csv";
@@ -165,7 +173,18 @@ const shiftLabels = {
 "T":"Training/Tour"
 };
 
-/* LOAD DATA */
+/* SORT FUNCTION */
+function sortBySeniority(list){
+    return list.sort((a,b)=>{
+        let ia = seniorityOrder.indexOf(a);
+        let ib = seniorityOrder.indexOf(b);
+        if(ia === -1) ia = 999;
+        if(ib === -1) ib = 999;
+        return ia - ib;
+    });
+}
+
+/* LOAD */
 Promise.all([
 fetch(shiftUrl).then(r=>r.text()),
 fetch(holidayUrl).then(r=>r.text())
@@ -202,11 +221,17 @@ let n=data[i][0]?.trim();
 if(n) names.push(n);
 }
 
-names.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
+names = sortBySeniority(names);
+
+sel.add(new Option("Select Name",""));
 
 names.forEach(n=>sel.add(new Option(n,n)));
 
-selectedName=sel.value;
+if(selectedName && names.includes(selectedName)){
+    sel.value = selectedName;
+} else {
+    selectedName = "";
+}
 }
 
 /* REFRESH */
@@ -229,7 +254,7 @@ if(data[i][0]===name) return data[i][col];
 }
 }
 
-/* PROCESS DATA */
+/* PROCESS */
 function getData(date){
 
 let header=data[0];
@@ -243,14 +268,12 @@ let shift=data[i][col];
 
 if(!shift) continue;
 
-/* FIX OFF */
 if(shift==="OFF"){
 if(!shifts["OFF"]) shifts["OFF"]=[];
 shifts["OFF"].push(name);
 continue;
 }
 
-/* MULTI SHIFT */
 shift.split("").forEach(s=>{
 if(!shifts[s]) shifts[s]=[];
 shifts[s].push(name);
@@ -268,33 +291,32 @@ box.innerHTML="";
 
 let shifts=getData(date);
 
-/* MAIN SHIFTS */
+/* MAIN */
 ["A","B","C","G","OFF","L","T"].forEach(s=>{
 
 let list=shifts[s]||[];
 
-list.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
+list = sortBySeniority(list);
 
 let alert=(["A","B","C"].includes(s)&&list.length<=2)?" ❗":"";
 
 let chips=list.map(n=>{
-let sel=(n===selectedName)?"selected":"";
+let sel=(selectedName && n.trim()===selectedName.trim())?"selected":"";
 return `<span class="chip ${s} ${sel}">${n}</span>`;
 }).join("");
 
 box.innerHTML+=`<div class="shift-title">${shiftLabels[s]} (${list.length})${alert}</div>${chips||"-"}`;
 });
 
-/* CONDITIONAL D & N */
+/* CONDITIONAL D/N */
 ["D","N"].forEach(s=>{
-
 let list=shifts[s]||[];
 if(list.length===0) return;
 
-list.sort((a,b)=>seniorityOrder.indexOf(a)-seniorityOrder.indexOf(b));
+list = sortBySeniority(list);
 
 let chips=list.map(n=>{
-let sel=(n===selectedName)?"selected":"";
+let sel=(selectedName && n.trim()===selectedName.trim())?"selected":"";
 return `<span class="chip ${s} ${sel}">${n}</span>`;
 }).join("");
 
@@ -306,9 +328,13 @@ box.innerHTML+=`<div class="shift-title">${shiftLabels[s]} (${list.length})</div
 function onNameChange(){
 selectedName=document.getElementById("nameSelector").value;
 refresh();
+
+if(document.getElementById("datePicker").value){
+renderSelected();
+}
 }
 
-/* SELECTED DATE */
+/* SELECTED */
 function renderSelected(){
 let val=document.getElementById("datePicker").value;
 if(!val) return;
