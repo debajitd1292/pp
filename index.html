@@ -5,22 +5,16 @@
 <title>PPU Shift Dashboard</title>
 
 <style>
-body {
-    font-family: Arial;
-    margin:0;
-    background:#eef1f5;
-}
+body { font-family: Arial; margin:0; background:#eef1f5; }
 
-/* HEADER */
 .header {
     background:#1f4e79;
     color:white;
     text-align:center;
     padding:20px 10px;
 }
-.logo {
-    width:50px;
-}
+.logo { width:50px; }
+
 .badge {
     display:inline-block;
     background:#c2185b;
@@ -29,11 +23,9 @@ body {
     margin:8px 0;
     font-weight:bold;
 }
-.sub-info {
-    font-size:14px;
-}
 
-/* CARD */
+.sub-info { font-size:14px; }
+
 .card {
     background:white;
     margin:12px;
@@ -42,13 +34,8 @@ body {
     box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
-/* SHIFT TEXT */
-.shift-title {
-    font-weight:bold;
-    margin-top:10px;
-}
+.shift-title { font-weight:bold; margin-top:10px; }
 
-/* NAME CHIPS */
 .chip {
     display:inline-block;
     padding:6px 10px;
@@ -58,7 +45,6 @@ body {
     font-size:12px;
 }
 
-/* COLORS */
 .A { background:#8e24aa; }
 .B { background:#fb8c00; }
 .C { background:#1e88e5; }
@@ -67,22 +53,19 @@ body {
 
 .extra { background:#fdd835; color:black; }
 
-hr {
-    margin:10px 0;
-}
+hr { margin:10px 0; }
 </style>
 
 </head>
 
 <body>
 
-<!-- HEADER -->
 <div class="header">
     <img src="https://raw.githubusercontent.com/debajitd1292/pp/main/logo.png" class="logo">
     <h2>PPU Shift Schedule</h2>
     <div id="todayDate"></div>
 
-    <div class="badge" id="todayShiftBadge"></div>
+    <div class="badge" id="todayShiftBadge">Loading...</div>
 
     <div class="sub-info">
         Next GH: <span id="nextGH">-</span> |
@@ -90,19 +73,16 @@ hr {
     </div>
 </div>
 
-<!-- DATE SELECT -->
 <div class="card">
     <label>Select Date:</label>
     <input type="date" id="datePicker" onchange="renderSelected()">
 </div>
 
-<!-- TODAY -->
 <div class="card">
     <h3>TODAY</h3>
     <div id="today"></div>
 </div>
 
-<!-- SELECTED -->
 <div class="card">
     <h3>SELECTED</h3>
     <div id="selected"></div>
@@ -110,37 +90,47 @@ hr {
 
 <script>
 
-// 🔗 UPDATE THESE LINKS
+// ✅ YOUR LINKS
 const shiftUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/shift.csv";
 const holidayUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/holiday.csv";
 
 let data = [];
 let holidays = [];
 
-// LOAD BOTH FILES
+// LOAD FILES
 Promise.all([
     fetch(shiftUrl).then(res => res.text()),
     fetch(holidayUrl).then(res => res.text())
 ])
 .then(([shiftText, holidayText]) => {
 
-    data = shiftText.split("\n").map(r => r.split(","));
+    console.log("Shift CSV Loaded");
+    console.log(shiftText);
+
+    // ✅ ROBUST CSV PARSER (handles , and ;)
+    data = shiftText.split("\n").map(r =>
+        r.replace(/\r/g, "").split(/[,;]/)
+    );
 
     holidays = holidayText.split("\n")
         .slice(1)
         .map(r => {
-            let [date, type, name] = r.split(",");
+            let [date, type, name] = r.replace(/\r/g, "").split(/[,;]/);
             return {
-                date: date.trim(),
-                type: type.trim(),
+                date: date?.trim(),
+                type: type?.trim(),
                 name: name ? name.trim() : ""
             };
         });
 
     init();
+})
+.catch(err => {
+    console.error("ERROR LOADING FILES:", err);
+    alert("Error loading CSV. Check console.");
 });
 
-// DATE FORMAT dd-mm-yyyy
+// DATE FORMAT
 function formatDate(date) {
     let d = ("0" + date.getDate()).slice(-2);
     let m = ("0" + (date.getMonth()+1)).slice(-2);
@@ -148,8 +138,10 @@ function formatDate(date) {
     return `${d}-${m}-${y}`;
 }
 
-// PRETTY DATE (2nd Oct)
+// PRETTY DATE
 function formatPrettyDate(dateStr) {
+    if (!dateStr) return "-";
+
     const [d, m, y] = dateStr.split("-");
     const date = new Date(`${y}-${m}-${d}`);
 
@@ -174,17 +166,19 @@ function init() {
     let myShift = getShiftForName(todayStr, "Debajit");
 
     document.getElementById("todayShiftBadge").innerText =
-        "Today Shift: " + (myShift || "-");
+        "Today Shift: " + (myShift || "No Data");
 
     render("today", todayStr);
-
     calculateNextHoliday(todayStr);
 }
 
 // GET SHIFT DATA
 function getShiftData(dateStr) {
 
-    let header = data[0];
+    let header = data[0].map(h => h.trim());
+    console.log("Looking for:", dateStr);
+    console.log("Header:", header);
+
     let col = header.indexOf(dateStr);
 
     if (col === -1) return null;
@@ -192,7 +186,7 @@ function getShiftData(dateStr) {
     let shifts = {};
 
     for (let i=1; i<data.length; i++) {
-        let name = data[i][0];
+        let name = data[i][0]?.trim();
         let shift = data[i][col]?.trim();
 
         if (!shift) continue;
@@ -207,17 +201,17 @@ function getShiftData(dateStr) {
 // GET MY SHIFT
 function getShiftForName(dateStr, name) {
 
-    let header = data[0];
+    let header = data[0].map(h => h.trim());
     let col = header.indexOf(dateStr);
 
     for (let i=1; i<data.length; i++) {
-        if (data[i][0] === name) {
-            return data[i][col];
+        if (data[i][0]?.trim() === name) {
+            return data[i][col]?.trim();
         }
     }
 }
 
-// RENDER SECTION
+// RENDER
 function render(containerId, dateStr) {
 
     let container = document.getElementById(containerId);
@@ -226,7 +220,7 @@ function render(containerId, dateStr) {
     let shifts = getShiftData(dateStr);
 
     if (!shifts) {
-        container.innerHTML = "No Data";
+        container.innerHTML = "No Data (Check date format)";
         return;
     }
 
@@ -246,25 +240,17 @@ function render(containerId, dateStr) {
         }
     });
 
-    if (extraHTML) {
-        container.innerHTML += "<hr>" + extraHTML;
-    }
+    if (extraHTML) container.innerHTML += "<hr>" + extraHTML;
 }
 
-// BLOCK CREATION
+// BLOCK
 function createBlock(title, names, cls) {
-
     let chips = names.map(n => `<span class="chip ${cls}">${n}</span>`).join("");
-
-    return `
-        <div class="shift-title">${title} (${names.length})</div>
-        ${chips || "-"}
-    `;
+    return `<div class="shift-title">${title} (${names.length})</div>${chips || "-"}`;
 }
 
 // SELECTED DATE
 function renderSelected() {
-
     let val = document.getElementById("datePicker").value;
     if (!val) return;
 
@@ -274,10 +260,10 @@ function renderSelected() {
     render("selected", str);
 }
 
-// NEXT HOLIDAY
+// HOLIDAY
 function calculateNextHoliday(todayStr) {
 
-    let header = data[0];
+    let header = data[0].map(h => h.trim());
     let todayIndex = header.indexOf(todayStr);
 
     let nextGH = null;
@@ -290,12 +276,8 @@ function calculateNextHoliday(todayStr) {
         let found = holidays.find(h => h.date === date);
 
         if (found) {
-            if (found.type === "GH" && !nextGH) {
-                nextGH = found;
-            }
-            if (found.type === "RH" && !nextRH) {
-                nextRH = found;
-            }
+            if (found.type === "GH" && !nextGH) nextGH = found;
+            if (found.type === "RH" && !nextRH) nextRH = found;
         }
 
         if (nextGH && nextRH) break;
