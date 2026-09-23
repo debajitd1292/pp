@@ -27,8 +27,8 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 }
 
 .logo {
-    width:50px;
-    height:50px;
+    width:60px;
+    height:60px;
     border-radius:50%;              /* perfect circle */
     object-fit:cover;
 
@@ -126,7 +126,7 @@ select:focus, input:focus {
 <body>
 
 <div class="header">
-    <img src="https://raw.githubusercontent.com/debajitd1292/PPU-Shift-Dashboard/main/logo.png"
+    <img src="https://raw.githubusercontent.com/debajitd1292/pp/main/logo.png"
      class="logo"
      onload="this.style.opacity=1; this.style.transform='scale(1)'">
     <h3>PPU Shift Schedule</h3>
@@ -275,11 +275,29 @@ let todaysNotes = notes.filter(n => n.date === key);
 if(todaysNotes.length === 0) return "";
 
 return todaysNotes.map(n => {
-if(n.type === "BIRTHDAY"){
-    return `🎂 Happy Birthday ${n.name}`;
-} else {
+
+    if(n.type === "BIRTHDAY"){
+        return `Happy Birthday ${n.name} 🎂`;
+    }
+
+    if(n.type === "REPUBLIC DAY"){
+        return `${n.message} 🇮🇳`;
+    }
+
+    if(n.type === "INDEPENDENCE DAY"){
+        return `${n.message} 🇮🇳`;
+    }
+
+    if(n.type === "FOUNDATION DAY"){
+        return `${n.message} 🎉`;
+    }
+
+    if(n.type === "NEW YEAR"){
+        return `${n.message} 🎉`;
+    }
+
     return n.message;
-}
+
 }).join("<br>");
 }
 
@@ -290,7 +308,7 @@ dateElem.innerText = new Date().toDateString();
 
 /* ✅ APPLY GREEN COLOR */
 if(isSpecialDay()){
-    dateElem.style.color = "#1b5e20";
+    dateElem.style.color = "#ffd600";
     dateElem.style.fontWeight = "bold";
 }
 
@@ -333,7 +351,7 @@ let shift = selectedName ? (getShift(today, selectedName) || "-") : "Select Name
 let badge = document.getElementById("todayShiftBadge");
 
 /* TEXT */
-badge.innerText = "Today Shift: " + shift;
+badge.innerText = "Today's Shift: " + shift;
 
 /* RESET CLASS */
 badge.className = "badge";
@@ -396,11 +414,17 @@ box.innerHTML="";
 
 let header=data[0].map(x=>x.trim());
 
-if(header.indexOf(date)===-1 && id==="selected"){
-box.innerHTML=`<div style="color:red;font-weight:bold;">
-Shift schedule is not available for the selected date
-</div>`;
-return;
+if(header.indexOf(date)===-1){
+
+    let msg = (id === "today")
+        ? "Shift schedule is not available for today"
+        : "Shift schedule is not available for the selected date";
+
+    box.innerHTML = `<div style="color:red;font-weight:bold;">
+    ${msg}
+    </div>`;
+
+    return;
 }
 
 let shifts=getData(date);
