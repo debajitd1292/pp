@@ -88,6 +88,10 @@ select:focus, input:focus {
     <img src="https://raw.githubusercontent.com/debajitd1292/pp/main/logo.png" class="logo">
     <h3>PPU Shift Schedule</h3>
     <div id="todayDate"></div>
+
+    <!-- ✅ ADDED NOTE HERE -->
+    <div id="todayNote" style="margin-top:5px;font-weight:bold;"></div>
+
     <div class="badge" id="todayShiftBadge">Loading...</div>
     <div>
         Next GH: <span id="nextGH"></span> |
@@ -121,19 +125,19 @@ select:focus, input:focus {
 
 const shiftUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/shift.csv";
 const holidayUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/holiday.csv";
+const notesUrl = "https://raw.githubusercontent.com/debajitd1292/pp/main/notes.csv";
 
 let data = [];
 let holidays = [];
+let notes = [];
 let selectedName = "";
 
-/* SENIORITY */
 const seniorityOrder = [
 "Saiprasad","Abhigyan","Arshad","Sandip","Shashank","Debajit",
 "Satadru","Santanu","Arka","Devendra","Kamal","Vijay","Palash",
 "Nihal","Sampreeti","Arun","Jitu","Pritam","Hriday"
 ];
 
-/* LABELS */
 const shiftLabels = {
 "A":"A Shift","B":"B Shift","C":"C Shift",
 "G":"General","OFF":"Rest/Off",
@@ -141,7 +145,6 @@ const shiftLabels = {
 "L":"Leave","T":"Training/Tour"
 };
 
-/* SORT */
 function sortBySeniority(list){
     return list.sort((a,b)=>{
         let ia = seniorityOrder.indexOf(a.trim());
@@ -152,17 +155,22 @@ function sortBySeniority(list){
     });
 }
 
-/* LOAD */
 Promise.all([
 fetch(shiftUrl).then(r=>r.text()),
-fetch(holidayUrl).then(r=>r.text())
-]).then(([shiftText,holidayText])=>{
+fetch(holidayUrl).then(r=>r.text()),
+fetch(notesUrl).then(r=>r.text())
+]).then(([shiftText,holidayText,notesText])=>{
 
 data = shiftText.split("\n").map(r=>r.replace(/\r/g,"").split(/[,;]/));
 
 holidays = holidayText.split("\n").slice(1).map(r=>{
 let [d,t,n]=r.replace(/\r/g,"").split(/[,;]/);
 return {date:d?.trim(),type:t?.trim(),name:n?.trim()};
+});
+
+notes = notesText.split("\n").slice(1).map(r=>{
+let [d,t,n,m]=r.replace(/\r/g,"").split(/[,;]/);
+return {date:d?.trim(),type:t?.trim(),name:n?.trim(),message:m?.trim()};
 });
 
 init();
@@ -172,7 +180,6 @@ function formatDate(d){
 return ("0"+d.getDate()).slice(-2)+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+d.getFullYear();
 }
 
-/* 🔥 HOLIDAY FORMAT */
 function formatHolidayDate(dateStr){
 let [d,m,y]=dateStr.split("-");
 let day=parseInt(d);
@@ -186,6 +193,25 @@ const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 return day + suffix + " " + months[parseInt(m)-1];
 }
 
+/* ✅ NEW FUNCTION */
+function getTodayNote(){
+let today = new Date();
+let key = ("0"+today.getDate()).slice(-2) + "-" +
+          ("0"+(today.getMonth()+1)).slice(-2);
+
+let todaysNotes = notes.filter(n => n.date === key);
+
+if(todaysNotes.length === 0) return "";
+
+return todaysNotes.map(n => {
+if(n.type === "BIRTHDAY"){
+    return `🎂 Happy Birthday ${n.name}`;
+} else {
+    return n.message;
+}
+}).join("<br>");
+}
+
 function init(){
 document.getElementById("todayDate").innerText=new Date().toDateString();
 populateNames();
@@ -196,6 +222,9 @@ if(saved){
 selectedName = saved;
 document.getElementById("nameSelector").value = saved;
 }
+
+/* ✅ SHOW NOTE */
+document.getElementById("todayNote").innerHTML = getTodayNote();
 
 refresh();
 calcHoliday();
@@ -247,7 +276,7 @@ if(!shift) continue;
 
 if(shift==="OFF"){
 if(!shifts["OFF"]) shifts["OFF"]=[];
-shifts["OFF"].push({name:name, multi:false});
+shifts["OFF"].push({name:name,multi:false});
 continue;
 }
 
@@ -314,9 +343,7 @@ box.innerHTML+=`<div class="shift-title">${shiftLabels[s]} (${list.length})</div
 });
 }
 
-/* SELECTED */
 function renderSelected(){
-
 let val=document.getElementById("datePicker").value;
 if(!val) return;
 
@@ -338,7 +365,6 @@ renderSelected();
 }
 }
 
-/* HOLIDAY */
 function calcHoliday(){
 
 let gh = holidays.find(h=>h.type==="GH");
