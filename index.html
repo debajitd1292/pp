@@ -16,7 +16,7 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
 }
 
 .holiday-text {
-    font-size: 12px;   /* change as needed */
+    font-size: 13px;   /* change as needed */
 }
 
 .logo { width:50px; border-radius:12px; }
@@ -28,6 +28,7 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
     border-radius:20px;
     margin:8px 0;
     font-weight:bold;
+    font-size:14px;
 }
 
 .card {
@@ -197,7 +198,35 @@ const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 return day + suffix + " " + months[parseInt(m)-1];
 }
 
-/* ✅ NEW FUNCTION */
+/* ✅ NEW FUNCTION (ADDED) */
+function isSpecialDay(){
+
+let today = new Date();
+let day = today.getDay(); // 0=Sun, 6=Sat
+let date = today.getDate();
+
+/* Sunday */
+if(day === 0) return true;
+
+/* 2nd & 4th Saturday */
+if(day === 6){
+    let week = Math.ceil(date / 7);
+    if(week === 2 || week === 4) return true;
+}
+
+/* GH check */
+let todayStr = formatDate(today);
+
+let isGH = holidays.some(h => 
+    h.date === todayStr && h.type === "GH"
+);
+
+if(isGH) return true;
+
+return false;
+}
+
+/* EXISTING */
 function getTodayNote(){
 let today = new Date();
 let key = ("0"+today.getDate()).slice(-2) + "-" +
@@ -217,7 +246,16 @@ if(n.type === "BIRTHDAY"){
 }
 
 function init(){
-document.getElementById("todayDate").innerText=new Date().toDateString();
+
+let dateElem = document.getElementById("todayDate");
+dateElem.innerText = new Date().toDateString();
+
+/* ✅ APPLY GREEN COLOR */
+if(isSpecialDay()){
+    dateElem.style.color = "#1b5e20";
+    dateElem.style.fontWeight = "bold";
+}
+
 populateNames();
 
 /* AUTO SAVE */
@@ -227,7 +265,7 @@ selectedName = saved;
 document.getElementById("nameSelector").value = saved;
 }
 
-/* ✅ SHOW NOTE */
+/* SHOW NOTE */
 document.getElementById("todayNote").innerHTML = getTodayNote();
 
 refresh();
@@ -303,7 +341,7 @@ let header=data[0].map(x=>x.trim());
 
 if(header.indexOf(date)===-1 && id==="selected"){
 box.innerHTML=`<div style="color:red;font-weight:bold;">
-SHIFT SCHEDULE NOT UPLOADED FOR THE SELECTED DATE
+Shift schedule is not available for the selected date
 </div>`;
 return;
 }
