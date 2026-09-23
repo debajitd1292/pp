@@ -466,14 +466,28 @@ renderSelected();
 
 function calcHoliday(){
 
-let gh = holidays.find(h=>h.type==="GH");
-let rh = holidays.find(h=>h.type==="RH");
+    let today = new Date();
 
-document.getElementById("nextGH").innerText =
-gh ? formatHolidayDate(gh.date)+" ("+gh.name+")" : "-";
+    let nextGH = null;
+    let nextRH = null;
 
-document.getElementById("nextRH").innerText =
-rh ? formatHolidayDate(rh.date) : "-";
+    holidays.forEach(h => {
+        if(!h.date) return;
+
+        let [d,m,y] = h.date.split("-");
+        let hd = new Date(`${y}-${m}-${d}`);
+
+        if(hd <= today) return;
+
+        if(h.type === "GH" && !nextGH) nextGH = h;
+        if(h.type === "RH" && !nextRH) nextRH = h;
+    });
+
+    document.getElementById("nextGH").innerText =
+        nextGH ? formatHolidayDate(nextGH.date) + " (" + nextGH.name + ")" : "-";
+
+    document.getElementById("nextRH").innerText =
+        nextRH ? formatHolidayDate(nextRH.date) : "-";
 }
 
 if ("serviceWorker" in navigator) {
