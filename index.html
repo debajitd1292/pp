@@ -78,6 +78,18 @@ select:focus, input:focus {
 .L { background:#ffd600; color:black; }
 .T { background:#00acc1; color:black; }
 
+/* Badge dynamic colors */
+.badge.A { background:#8e24aa; }
+.badge.B { background:#ff9800; }
+.badge.C { background:#1e40ff; }
+.badge.G { background:#e53935; }
+.badge.OFF { background:#1b5e20; }
+
+.badge.D { background:#43a047; }
+.badge.N { background:#212121; }
+.badge.L { background:#ffd600; color:black; }
+.badge.T { background:#00acc1; color:black; }
+
 .footer {
     text-align:center;
     padding:15px;
@@ -288,10 +300,29 @@ names.forEach(n=>sel.add(new Option(n,n)));
 }
 
 function refresh(){
-let today=formatDate(new Date());
-document.getElementById("todayShiftBadge").innerText=
-"Today Shift: "+(getShift(today,selectedName)||"-");
-render("today",today);
+
+let today = formatDate(new Date());
+let shift = selectedName ? (getShift(today, selectedName) || "-") : "Select Name";
+
+let badge = document.getElementById("todayShiftBadge");
+
+/* TEXT */
+badge.innerText = "Today Shift: " + shift;
+
+/* RESET CLASS */
+badge.className = "badge";
+
+/* APPLY COLOR */
+if(shift && shift !== "-" && shift !== "Select Name"){
+
+    let primary = shift[0];   // A from AB, B from BC
+
+    if(primary === "O") primary = "OFF";
+
+    badge.classList.add(primary);
+}
+
+render("today", today);
 }
 
 function getShift(date,name){
