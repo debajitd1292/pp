@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PPU Shift Dashboard</title>
 
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f4e79">
+
 <style>
 body { font-family: Arial; margin:0; background:#eef1f5; }
 
@@ -448,6 +451,12 @@ gh ? formatHolidayDate(gh.date)+" ("+gh.name+")" : "-";
 
 document.getElementById("nextRH").innerText =
 rh ? formatHolidayDate(rh.date) : "-";
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js")
+    .then(() => console.log("Service Worker Registered"))
+    .catch(err => console.log("SW failed:", err));
 }
 
 </script>
