@@ -1,4 +1,4 @@
-const CACHE_NAME = "ppu-shift-v2";
+const CACHE_NAME = "ppu-shift-v3";
 
 const urlsToCache = [
   "./",
