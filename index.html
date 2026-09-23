@@ -467,6 +467,7 @@ renderSelected();
 function calcHoliday(){
 
     let today = new Date();
+    today.setHours(0,0,0,0);  // normalize
 
     let nextGH = null;
     let nextRH = null;
@@ -475,7 +476,8 @@ function calcHoliday(){
         if(!h.date) return;
 
         let [d,m,y] = h.date.split("-");
-        let hd = new Date(`${y}-${m}-${d}`);
+
+        let hd = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
 
         if(hd <= today) return;
 
