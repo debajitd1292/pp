@@ -26,20 +26,20 @@ body { font-family: Arial; margin:0; background:#eef1f5; }
     font-size: 13px;   /* change as needed */
 }
 
-.logo {
-    width:60px;
-    height:60px;
-    border-radius:50%;              /* perfect circle */
+.logo { 
+    width:60px; 
+    height:60px; 
+    border-radius:50%;              /* perfect circle */ 
     object-fit:cover;
-
-    box-shadow:0 2px 8px rgba(0,0,0,0.3);
 
-    background:white;               /* avoids flicker edge */
-    padding:2px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.3);  /* keep premium effect */
 
-    opacity:0;                      /* hidden initially */
-    transform:scale(0.8);           /* small at start */
-    transition:all 0.4s ease;       /* smooth animation */
+    background:transparent;         /* no white ring */
+    padding:0;                      /* remove extra spacing */
+
+    opacity:0;                      
+    transform:scale(0.8);           
+    transition:all 0.4s ease;       
 }
 
 .badge {
